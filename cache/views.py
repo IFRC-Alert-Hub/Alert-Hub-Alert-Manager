@@ -1,4 +1,4 @@
-from cache import admin1_alerts_cache, country_admin1s_cache, info_areas_cache, region_countries_cache, alerts_cache
+from cache import admin1_alerts_cache, country_admin1s_cache, info_areas_cache, region_countries_cache, alerts_cache, admin1s_cache
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound
 from django.template import loader
 from django.core.cache import cache
@@ -38,27 +38,29 @@ def get_alerts(request):
     response = alerts_cache.get_alerts()
     return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})
 
+def get_admin1s(request):
+    response = admin1s_cache.get_admin1s()
+    return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})
+
 def refresh_cache(request):
-    from .region_countries_cache import initialise_region_cache
-    from .country_admin1s_cache import initialise_country_cache
-    from .admin1_alerts_cache import initialise_admin1_cache
-    from .info_areas_cache import initialise_info_cache
-    from .alerts_cache import initialise_alerts_cache
     cache.clear()
     print('Initialising region_countries cache...')
-    initialise_region_cache()
+    region_countries_cache.initialise_region_cache()
     print(len(cache.keys('*')))
     print('Initialising country_admin1s cache...')
-    initialise_country_cache()
+    country_admin1s_cache.initialise_country_cache()
     print(len(cache.keys('*')))
     print('Initialising admin1_alerts cache...')
-    initialise_admin1_cache()
+    admin1_alerts_cache.initialise_admin1_cache()
     print(len(cache.keys('*')))
     print('Initialising info_areas cache...')
-    initialise_info_cache()
+    info_areas_cache.initialise_info_cache()
     print(len(cache.keys('*')))
     print('Initialising alerts cache...')
-    initialise_alerts_cache()
+    alerts_cache.initialise_alerts_cache()
+    print(len(cache.keys('*')))
+    print('Initialising admin1s cache...')
+    admin1s_cache.initialise_admin1s_cache()
     print(len(cache.keys('*')))
     response = {'status': 'success'}
     return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})

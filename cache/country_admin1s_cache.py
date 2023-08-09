@@ -30,20 +30,21 @@ def initialise_country_cache():
                 country_data['admin1s'].append(admin1_data)
                 
         # Compute for alerts that were not matched to any admin1
-        filters = {'urgency': set(), 'severity': set(), 'certainty': set()}
-        for alert_id in country_alerts:
-            alert = CapFeedAlert.objects.get(id=alert_id)
-            for info in alert.capfeedalertinfo_set.all():
-                filters['urgency'].add(info.urgency)
-                filters['severity'].add(info.severity)
-                filters['certainty'].add(info.certainty)
-        filters['urgency'] = list(filters['urgency'])
-        filters['severity'] = list(filters['severity'])
-        filters['certainty'] = list(filters['certainty'])
-        unknown_admin1_data = {'id': -country.id, 'name': 'Unknown', 'polygon': None, 'multipolygon': None}
-        unknown_admin1_data['filters'] = filters
-        country_data['admin1s'].append(unknown_admin1_data)
-        
+        if len(country_alerts) > 0:
+            filters = {'urgency': set(), 'severity': set(), 'certainty': set()}
+            for alert_id in country_alerts:
+                alert = CapFeedAlert.objects.get(id=alert_id)
+                for info in alert.capfeedalertinfo_set.all():
+                    filters['urgency'].add(info.urgency)
+                    filters['severity'].add(info.severity)
+                    filters['certainty'].add(info.certainty)
+            filters['urgency'] = list(filters['urgency'])
+            filters['severity'] = list(filters['severity'])
+            filters['certainty'] = list(filters['certainty'])
+            unknown_admin1_data = {'id': -country.id, 'name': 'Unknown', 'polygon': None, 'multipolygon': None}
+            unknown_admin1_data['filters'] = filters
+            country_data['admin1s'].append(unknown_admin1_data)
+            
         cache.set("country" + str(country.id), country_data, timeout = None)
 
 def get_country(country_id):
