@@ -1,27 +1,49 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
+from cache import admin1_alerts_cache, country_admin1s_cache, info_areas_cache, region_countries_cache, alerts_cache, admin1s_cache
+from django.core.cache import cache
+from django.utils import timezone
 
 
 
 # Add the incoming alerts in cache
 @shared_task(bind=True)
-def cache_incoming_alert(self, alert_id):
-    # alert_level_result = cache_incoming_alerts(alert_id)
-    # if alert_level_result == "Success":
-    #     cache_incoming_alerts_info_into_region_cache(alert_id)
-    #     return f"Alert: {alert_id} is successfully cached."
-    # elif alert_level_result == "Already Cached":
-    #     return f"Alert: {alert_id} is already cached."
-    # else:
-    #     return f"Alert: {alert_id} is not cached because it is not in the database."
-    return "Not implemented yet"
+def cache_incoming_alert(self, alert_id, country_id, admin1_ids, info_ids):
+    # Skip if cache has been updated in the last 1 seconds
+    last_cache_update = cache.get("cache_update", None)
+    if last_cache_update and last_cache_update > timezone.now() - timezone.timedelta(seconds = 1):
+        return "Skipped, cache updated recently"
+    
+    # Record cache update time
+    cache.set("cache_update", timezone.now(), timeout = None)
+    
+    # Update cache
+    region_countries_cache.update_region_cache()
+    country_admin1s_cache.update_country_cache(country_id)
+    admin1_alerts_cache.update_admin1_cache(country_id)
+    info_areas_cache.update_info_cache(info_ids, True)
+
+    alerts_cache.update_alerts_cache(alert_id, True)
+
+    return "Updated cache for added alert"
 
 
 # Delete the removed alerts in cache
 @shared_task(bind=True)
-def remove_cached_alert(self, alert_id):
-    # region_level_result = remove_alerts_info_from_regions_cache(alert_id)
-    # alert_level_result = remove_alert_from_alert_cache(alert_id)
-    # return region_level_result + "\n" + alert_level_result
-    return "Not implemented yet"
+def remove_cached_alert(self, alert_id, country_id, admin1_ids, info_ids):
+    # Skip if cache has been updated in the last 1 seconds
+    last_cache_update = cache.get("cache_update", None)
+    if last_cache_update and last_cache_update > timezone.now() - timezone.timedelta(seconds = 1):
+        return "Skipped, cache updated recently"
+    
+    # Record cache update time
+    cache.set("cache_update", timezone.now(), timeout = None)
 
+    region_countries_cache.update_region_cache()
+    country_admin1s_cache.update_country_cache(country_id)
+    admin1_alerts_cache.update_admin1_cache(country_id)
+    info_areas_cache.update_info_cache(info_ids, False)
+
+    alerts_cache.update_alerts_cache(alert_id, False)
+
+    return "Updated cache for removed alert"
