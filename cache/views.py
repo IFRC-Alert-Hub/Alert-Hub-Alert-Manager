@@ -56,6 +56,14 @@ def get_alerts(request):
     response = alerts_cache.get_alerts()
     return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})
 
+def get_country_feeds(request):
+    response = alerts_cache.get_country_feeds()
+    return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})
+    
+def get_country_alerts(request, iso3):
+    response = alerts_cache.get_country_alerts(iso3)
+    return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False}, safe=False)
+
 def get_admin1s(request):
     response = admin1s_cache.get_admin1s()
     return JsonResponse(response, json_dumps_params={'indent': 2, 'ensure_ascii': False})
