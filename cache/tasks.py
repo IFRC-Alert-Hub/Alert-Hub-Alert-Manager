@@ -1,30 +1,53 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
-from .region_cache import cache_imcoming_alerts_info_into_region_cache, \
-    remove_alerts_info_from_regions_cache
-from .alert_cache import cache_incoming_alerts, remove_alert_from_alert_cache
-
-import json
-from .models import CapFeedAlert
+from cache import admin1_alerts_cache, country_admin1s_cache, info_areas_cache, region_countries_cache, alerts_cache, admin1s_cache
 from django.core.cache import cache
+from django.utils import timezone
 
-# Add the incoming alerts in cache
+
+# We separate cache updating into several parts so that
+# they can be run concurrently by Celery workers
+
+
+# Add instruction to update country in cache
 @shared_task(bind=True)
-def cache_incoming_alert(self, alert_id):
-    alert_level_result = cache_incoming_alerts(alert_id)
-    if alert_level_result == "Success":
-        cache_imcoming_alerts_info_into_region_cache(alert_id)
-        return f"Alert: {alert_id} is successfully cached."
-    elif alert_level_result == "Already Cached":
-        return f"Alert: {alert_id} is already cached."
-    else:
-        return f"Alert: {alert_id} is not cached because it is not in the database."
+def update_cache_instructions(self, country_id):
+    update_records = cache.get('update_records', dict())
+    update_records[country_id] = timezone.now()
+    cache.set('update_records', update_records, timeout = None)
 
+    return "Cache update instructions received"
 
-# Delete the removed alerts in cache
+# Update non-priority cache part 1
 @shared_task(bind=True)
-def remove_cached_alert(self, alert_id):
-    region_level_result = remove_alerts_info_from_regions_cache(alert_id)
-    alert_level_result = remove_alert_from_alert_cache(alert_id)
-    return region_level_result + "\n" + alert_level_result
+def update_cache_1(self):
+    print('Updating cache part 1')
+    country_admin1s_cache.update_country_cache()
+    admin1_alerts_cache.update_admin1_cache()
 
+    return "Updated cache part 1"
+
+# Update non-priority cache part 2
+@shared_task(bind=True)
+def update_cache_2(self):
+    print('Updating cache part 2')
+    region_countries_cache.update_region_cache()
+    info_areas_cache.update_info_cache()
+    admin1s_cache.update_admin1s_cache()
+
+    return "Updated cache part 2"
+
+# Update priority cache part 1
+@shared_task(bind=True)
+def update_cache_fast_1(self):
+    alerts_cache.calculate_country_feeds()
+    alerts_cache.calculate_country_alerts()
+
+    return "Updated external alerts api cache part 1"
+
+# Update priority cache part 2
+@shared_task(bind=True)
+def update_cache_fast_2(self):
+    alerts_cache.update_alerts_cache()
+
+    return "Updated external alerts api cache part 2"

@@ -1,6 +1,28 @@
 from django.db import models
 
+# These use the same database as the CAP Aggregator
+# These models were generated to match,
+# Dont change these unless the models in CAP Aggregator are updated and the Alert Manager needs to change
 
+
+class CapFeedRegion(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    polygon = models.TextField(blank=True, null=True)
+    centroid = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'cap_feed_region'
+
+    def to_dict(self):
+        region_dict = dict()
+        region_dict['id'] = self.id
+        region_dict['name'] = self.name
+        region_dict['polygon'] = self.polygon
+        region_dict['centroid'] = self.centroid
+        return region_dict
+    
 class CapFeedContinent(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
@@ -13,11 +35,11 @@ class CapFeedCountry(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
     iso3 = models.CharField(unique=True)
-    polygon = models.TextField()
-    multipolygon = models.TextField()
+    polygon = models.TextField(blank=True, null=True)
+    multipolygon = models.TextField(blank=True, null=True)
     centroid = models.CharField(max_length=255)
     continent = models.ForeignKey(CapFeedContinent, models.DO_NOTHING)
-    region = models.ForeignKey('CapFeedRegion', models.DO_NOTHING)
+    region = models.ForeignKey(CapFeedRegion, models.DO_NOTHING)
 
     class Meta:
         managed = False
@@ -27,27 +49,26 @@ class CapFeedCountry(models.Model):
         country_dict = dict()
         country_dict['id'] = self.id
         country_dict['name'] = self.name
-        district_dict = {}
-        districts = self.capfeeddistrict_set.all()
-        for district in districts:
-            district_dict[district.id] = district.to_dict()
-        country_dict['districts'] = district_dict
+        country_dict['iso3'] = self.iso3
+        country_dict['polygon'] = self.polygon
+        country_dict['multipolygon'] = self.multipolygon
+        country_dict['centroid'] = self.centroid
         return country_dict
 
-class CapFeedDistrict(models.Model):
+class CapFeedAdmin1(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    polygon = models.TextField()
-    multipolygon = models.TextField()
-    country = models.ForeignKey(CapFeedCountry, models.DO_NOTHING)
-    max_latitude = models.FloatField(blank=True, null=True)
-    max_longitude = models.FloatField(blank=True, null=True)
+    polygon = models.TextField(blank=True, null=True)
+    multipolygon = models.TextField(blank=True, null=True)
     min_latitude = models.FloatField(blank=True, null=True)
+    max_latitude = models.FloatField(blank=True, null=True)
     min_longitude = models.FloatField(blank=True, null=True)
+    max_longitude = models.FloatField(blank=True, null=True)
+    country = models.ForeignKey('CapFeedCountry', models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'cap_feed_district'
+        db_table = 'cap_feed_admin1'
 
     def to_dict(self):
         country_dict = dict()
@@ -55,11 +76,6 @@ class CapFeedDistrict(models.Model):
         country_dict['name'] = self.name
         country_dict['polygon'] = self.polygon
         country_dict['multipolygon'] = self.multipolygon
-        alert_dict = {}
-        alerts = self.capfeedalert_set.all()
-        for alert in alerts:
-            alert_dict[alert.id] = alert.to_dict_in_short()
-        country_dict['alerts'] = alert_dict
         return country_dict
 
 class CapFeedAlert(models.Model):
@@ -80,7 +96,6 @@ class CapFeedAlert(models.Model):
     incidents = models.TextField()
     country = models.ForeignKey('CapFeedCountry', models.DO_NOTHING)
     feed = models.ForeignKey('CapFeedFeed', models.DO_NOTHING)
-    districts = models.ManyToManyField(CapFeedDistrict, through='CapFeedAlertDistrict')
 
     class Meta:
         managed = False
@@ -88,58 +103,31 @@ class CapFeedAlert(models.Model):
 
     def to_dict(self):
         alert_dict = dict()
-        #alert_dict['id'] = self.id
-        alert_dict['status'] = self.status
-        alert_dict['source'] = self.source
-        alert_dict['sent'] = str(self.sent)
+        alert_dict['id'] = self.id
+        alert_dict['url'] = self.url
+        alert_dict['identifier'] = self.identifier
         alert_dict['sender'] = self.sender
-        alert_dict['references'] = self.references
+        alert_dict['sent'] = str(self.sent)
+        alert_dict['status'] = self.status
+        alert_dict['msg_type'] = self.msg_type
+        alert_dict['source'] = self.source
         alert_dict['scope'] = self.scope
         alert_dict['restriction'] = self.restriction
-        alert_dict['note'] = self.note
-        alert_dict['msg_type'] = self.msg_type
-        alert_dict['incidents'] = self.incidents
-        alert_dict['identifier'] = self.identifier
-        alert_dict['code'] = self.code
         alert_dict['addresses'] = self.addresses
-        alert_dict['country'] = self.country.name
-        alert_dict['iso3'] = self.country.iso3
-        alert_dict['country_id'] = self.country.id
-        alert_dict['region_id'] = self.country.region.id # This is used for level-1 api
-        alert_dict['country_name'] = self.country.name
-        alert_dict['region_name'] = self.country.region.name
-        alert_dict['feed_url'] = self.feed.url
-        alert_dict['feed_name'] = self.feed.name
-
-        info_list = []
-        for info in self.capfeedalertinfo_set.all():
-            info_list.append(info.to_dict())
-        alert_dict['info'] = info_list
+        alert_dict['code'] = self.code
+        alert_dict['note'] = self.note
+        alert_dict['references'] = self.references
+        alert_dict['incidents'] = self.incidents
         return alert_dict
 
-    def to_dict_in_short(self):
-        alert_dict_in_short = dict()
-        alert_dict_in_short['id'] = self.id
-        alert_dict_in_short['identifier'] = self.identifier
-        alert_dict_in_short['sent'] = str(self.sent)
-        alert_dict_in_short['status'] = self.status
-        alert_dict_in_short['msgType'] = self.msg_type
-
-        info_list = []
-        for info in self.capfeedalertinfo_set.all():
-            info_list.append(info.to_dict_in_short())
-        alert_dict_in_short['info'] = info_list
-        return alert_dict_in_short
-
-class CapFeedAlertDistrict(models.Model):
+class CapFeedAlertAdmin1(models.Model):
     id = models.BigAutoField(primary_key=True)
+    admin1 = models.ForeignKey(CapFeedAdmin1, models.DO_NOTHING)
     alert = models.ForeignKey(CapFeedAlert, models.DO_NOTHING)
-    district = models.ForeignKey('CapFeedDistrict', models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'cap_feed_alertdistrict'
-
+        db_table = 'cap_feed_alertadmin1'
 
 class CapFeedAlertInfo(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -170,49 +158,26 @@ class CapFeedAlertInfo(models.Model):
 
     def to_dict(self):
         alert_info_dict = dict()
-        alert_info_dict['web'] = self.web
-        alert_info_dict['urgency'] = self.urgency
-        alert_info_dict['audience'] = self.audience
+        alert_info_dict['id'] = self.id
+        alert_info_dict['language'] = self.language
         alert_info_dict['category'] = self.category
-        alert_info_dict['certainty'] = self.certainty
-        alert_info_dict['contact'] = self.contact
-        alert_info_dict['effective'] = str(self.effective)
         alert_info_dict['event'] = self.event
-        alert_info_dict['event_code'] = self.event_code
-        alert_info_dict['headline'] = self.headline
-        alert_info_dict['expires'] = str(self.expires)
-        alert_info_dict['instruction'] = self.instruction
-        alert_info_dict['language'] = self.language
-        alert_info_dict['onset'] = str(self.onset)
         alert_info_dict['response_type'] = self.response_type
-        alert_info_dict['sender_name'] = self.sender_name
-        alert_info_dict['severity'] = self.severity
-        alert_info_dict['id'] = self.id
-        alert_info_dict['description'] = self.description
-
-        parameter_set = self.capfeedalertinfoparameter_set.all()
-        parameter_list = []
-        for parameter in parameter_set:
-            parameter_list.append(parameter.to_dict())
-        if len(parameter_list) != 0:
-            alert_info_dict['parameter'] = parameter_list
-        area_set = self.capfeedalertinfoarea_set.all()
-
-        area_list = []
-        for area in area_set:
-            area_list.append(area.to_dict())
-        if len(area_list) != 0:
-            alert_info_dict['area'] = area_list
-        return alert_info_dict
-
-    def to_dict_in_short(self):
-        alert_info_dict = dict()
-        alert_info_dict['id'] = self.id
-        alert_info_dict['language'] = self.language
         alert_info_dict['urgency'] = self.urgency
-        alert_info_dict['certainty'] = self.certainty
         alert_info_dict['severity'] = self.severity
-
+        alert_info_dict['certainty'] = self.certainty
+        alert_info_dict['audience'] = self.audience
+        alert_info_dict['event_code'] = self.event_code
+        alert_info_dict['effective'] = str(self.effective)
+        alert_info_dict['onset'] = str(self.onset)
+        alert_info_dict['expires'] = str(self.expires)
+        alert_info_dict['sender_name'] = self.sender_name
+        alert_info_dict['headline'] = self.headline
+        alert_info_dict['description'] = self.description
+        alert_info_dict['instruction'] = self.instruction
+        alert_info_dict['web'] = self.web
+        alert_info_dict['contact'] = self.contact
+        alert_info_dict['parameter'] = self.parameter
         return alert_info_dict
 
 class CapFeedAlertInfoArea(models.Model):
@@ -228,33 +193,26 @@ class CapFeedAlertInfoArea(models.Model):
 
     def to_dict(self):
         alert_info_area_dict = dict()
+        alert_info_area_dict['id'] = self.id
         alert_info_area_dict['area_desc'] = self.area_desc
         alert_info_area_dict['altitude'] = self.altitude
         alert_info_area_dict['ceiling'] = self.ceiling
-
-        area_polygon_set = self.capfeedalertinfoareapolygon_set.all()
-        area_polygon_list = []
-        for area_polygon in area_polygon_set:
-            area_polygon_list.append(area_polygon.to_dict())
-        if len(area_polygon_list) != 0:
-            alert_info_area_dict['polygon'] = area_polygon_list
-
-        area_circle_set = self.capfeedalertinfoareacircle_set.all()
-        area_circle_list = []
-        for area_circle in area_circle_set:
-             area_circle_list.append(area_circle.to_dict())
-        if len(area_circle_list) != 0:
-            alert_info_area_dict['circle'] = area_circle_list
-
-        area_geocode_set = self.capfeedalertinfoareageocode_set.all()
-        area_geocode_list = []
-        for area_geocode in area_geocode_set:
-            area_geocode_list.append(area_geocode.to_dict())
-        if len(area_geocode_list) != 0:
-            alert_info_area_dict['geocode'] = area_geocode_list
-
         return alert_info_area_dict
+    
+class CapFeedAlertInfoAreaPolygon(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    value = models.TextField()
+    alert_info_area = models.ForeignKey(CapFeedAlertInfoArea, models.DO_NOTHING)
 
+    class Meta:
+        managed = False
+        db_table = 'cap_feed_alertinfoareapolygon'
+
+    def to_dict(self):
+        alert_info_area_polygon_dict = dict()
+        alert_info_area_polygon_dict['id'] = self.id
+        alert_info_area_polygon_dict['value'] = self.value
+        return alert_info_area_polygon_dict
 
 class CapFeedAlertInfoAreaCircle(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -267,10 +225,9 @@ class CapFeedAlertInfoAreaCircle(models.Model):
 
     def to_dict(self):
         alert_info_area_circle_dict = dict()
+        alert_info_area_circle_dict['id'] = self.id
         alert_info_area_circle_dict['value'] = self.value
         return alert_info_area_circle_dict
-
-
 
 class CapFeedAlertInfoAreaGeocode(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -284,23 +241,10 @@ class CapFeedAlertInfoAreaGeocode(models.Model):
 
     def to_dict(self):
         alert_info_area_geocode_dict = dict()
+        alert_info_area_geocode_dict['id'] = self.id
         alert_info_area_geocode_dict['value_name'] = self.value_name
         alert_info_area_geocode_dict['value'] = self.value
         return alert_info_area_geocode_dict
-
-class CapFeedAlertInfoAreaPolygon(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    value = models.TextField()
-    alert_info_area = models.ForeignKey(CapFeedAlertInfoArea, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'cap_feed_alertinfoareapolygon'
-
-    def to_dict(self):
-        alert_info_area_ploygon_dict = dict()
-        alert_info_area_ploygon_dict['value'] = self.value
-        return alert_info_area_ploygon_dict
 
 class CapFeedAlertInfoParameter(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -312,35 +256,54 @@ class CapFeedAlertInfoParameter(models.Model):
         managed = False
         db_table = 'cap_feed_alertinfoparameter'
 
-
-
     def to_dict(self):
         alert_info_parameter_dict = dict()
+        alert_info_parameter_dict['id'] = self.id
         alert_info_parameter_dict['value_name'] = self.value_name
         alert_info_parameter_dict['value'] = self.value
         return alert_info_parameter_dict
 
 class CapFeedFeed(models.Model):
-    name = models.CharField(max_length=255)
-    url = models.CharField(primary_key=True, max_length=255)
+    id = models.BigAutoField(primary_key=True)
+    url = models.CharField(unique=True, max_length=255)
     format = models.CharField()
     polling_interval = models.IntegerField()
-    atom = models.CharField()
-    cap = models.CharField()
-    country = models.ForeignKey(CapFeedCountry, models.DO_NOTHING)
+    enable_polling = models.BooleanField()
+    enable_rebroadcast = models.BooleanField()
+    official = models.BooleanField()
+    status = models.CharField()
+    author_name = models.CharField()
+    author_email = models.CharField()
     notes = models.TextField()
+    country = models.ForeignKey(CapFeedCountry, models.DO_NOTHING)
 
     class Meta:
         managed = False
         db_table = 'cap_feed_feed'
 
-
-class CapFeedRegion(models.Model):
+class CapFeedFeedlog(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=255)
-    polygon = models.TextField()
-    centroid = models.CharField(max_length=255)
+    exception = models.CharField(max_length=255)
+    error_message = models.TextField()
+    description = models.TextField()
+    response = models.TextField()
+    alert_url = models.CharField(max_length=255)
+    timestamp = models.DateTimeField()
+    notes = models.TextField()
+    feed = models.ForeignKey(CapFeedFeed, models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'cap_feed_region'
+        db_table = 'cap_feed_feedlog'
+        unique_together = (('alert_url', 'description'),)
+
+class CapFeedLanguageInfo(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    language = models.CharField()
+    logo = models.CharField(max_length=255, blank=True, null=True)
+    feed = models.ForeignKey(CapFeedFeed, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'cap_feed_languageinfo'

@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from datetime import timedelta
 from django.conf import settings
 from dotenv import load_dotenv
 from kombu import Queue
@@ -11,6 +12,29 @@ if 'WEBSITE_HOSTNAME' not in os.environ:
 else:
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'alertmanager.production')
 app = Celery('alertmanager')
+
+app.conf.beat_schedule = {
+    'update_cache_1':{
+        'task': 'cache.tasks.update_cache_1',
+        'schedule': timedelta(seconds=30),
+        'options': {'queue': 'cache'}
+    },
+    'update_cache_2':{
+        'task': 'cache.tasks.update_cache_2',
+        'schedule': timedelta(seconds=30),
+        'options': {'queue': 'cache'}
+    },
+    'update_cache_fast_1':{
+        'task': 'cache.tasks.update_cache_fast_1',
+        'schedule': timedelta(seconds=5),
+        'options': {'queue': 'cache'}
+    },
+    'update_cache_fast_2':{
+        'task': 'cache.tasks.update_cache_fast_2',
+        'schedule': timedelta(seconds=5),
+        'options': {'queue': 'cache'}
+    }
+}
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
@@ -27,14 +51,12 @@ app.conf.task_queues = (
 )
 app.conf.task_default_exchange = 'cache'
 app.conf.task_default_exchange_type = 'topic'
-app.conf.task_default_routing_key = 'cache.default'
+app.conf.task_default_routing_key = 'cache.#'
 
 task_routes = {
-        'cache.tasks.*': {
-            'queue': 'cache',
-            'routing_key': 'cache.#',
-            'exchange' : 'cache',
-        },
+    'cache.tasks.*': {
+        'queue': 'cache',
+        'routing_key': 'cache.#',
+        'exchange' : 'cache',
+    },
 }
-#Used for testing
-#app.send_task("cache.tasks.remove_cached_alert", kwargs={"alert_id": 6565})
